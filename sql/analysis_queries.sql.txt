@@ -1,0 +1,116 @@
+  -- total sales by country --
+SELECT 
+    COUNTRY, ROUND(SUM(SALES), 2) AS total_sales
+FROM
+    sales_data_sample
+GROUP BY COUNTRY
+ORDER BY total_sales DESC;
+
+-- top 10 product lines by revenue --
+
+SELECT 
+    PRODUCTLINE, SUM(SALES) AS revenue
+FROM
+    sales_data_sample
+GROUP BY PRODUCTLINE
+ORDER BY revenue DESC
+LIMIT 10;
+
+-- monthly sales trends --
+
+SELECT 
+    order_ym AS month, SUM(SALES) AS total_sales
+FROM
+    sales_data_sample
+GROUP BY order_ym
+ORDER BY total_sales;
+
+-- tot 10 customer by total spent --
+
+SELECT 
+    CUSTOMERNAME, SUM(SALES) AS total_spent
+FROM
+    sales_data_sample
+GROUP BY CUSTOMERNAME
+ORDER BY total_spent DESC
+LIMIT 10;
+
+-- average order value by deal size --
+
+SELECT 
+    COUNT(*) AS orders,
+    DEALSIZE,
+    ROUND(AVG(order_value), 2) AS avg_order_value
+FROM
+    sales_data_sample
+GROUP BY DEALSIZE
+ORDER BY avg_order_value DESC;
+
+-- revenue by territory and product line --
+
+SELECT 
+    TERRITORY, PRODUCTLINE, SUM(SALES) AS REVENUE
+FROM
+    sales_data_sample
+GROUP BY TERRITORY , PRODUCTLINE
+ORDER BY TERRITORY , REVENUE DESC;
+  
+  
+-- cancilation rate by product line --
+
+SELECT 
+    PRODUCTLINE,
+    SUM(CASE
+        WHEN STATUS LIKE '%Cancelled%' THEN 1
+        ELSE 0
+    END) AS cancelled_orders,
+    ROUND((SUM(CASE
+                        WHEN STATUS LIKE '%Cancelled%' THEN 1
+                        ELSE 0
+                    END) / COUNT(*)) * 100,
+            2) AS cancelation_rate
+FROM
+    sales_data_sample
+GROUP BY PRODUCTLINE
+ORDER BY cancelation_rate DESC;
+
+-- top 10 products(productcode) by revenue --
+
+SELECT 
+    PRODUCTCODE, SUM(SALES) AS revenue
+FROM
+    sales_data_sample
+GROUP BY PRODUCTCODE
+ORDER BY revenue DESC
+LIMIT 10;
+
+-- Repeat customers — orders per customer (who ordered >1 --
+
+SELECT 
+    CUSTOMERNAME, COUNT(*) AS ORDERS_PER_CUSTOMER
+FROM
+    sales_data_sample
+GROUP BY CUSTOMERNAME
+HAVING COUNT(*) > 1; 
+
+-- Top product in each country (using window function) --
+
+SELECT 
+    COUNTRY,
+    PRODUCTCODE,
+    REVENUE,
+    rank_in_country
+FROM (
+    SELECT 
+        COUNTRY,
+        PRODUCTCODE,
+        ROUND(SUM(SALES), 2) AS REVENUE,
+        ROW_NUMBER() OVER (
+            PARTITION BY COUNTRY 
+            ORDER BY SUM(SALES) DESC
+        ) AS rank_in_country
+    FROM sales_data_sample
+    GROUP BY COUNTRY, PRODUCTCODE
+) t
+WHERE rank_in_country <= 3
+ORDER BY COUNTRY, rank_in_country;

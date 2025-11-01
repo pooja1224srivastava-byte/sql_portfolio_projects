@@ -1,0 +1,124 @@
+-- check rows count --
+SELECT 
+    COUNT(*) AS total_rows
+FROM
+    sales_data_sample;
+-- ans=  3752 rows --
+-- check data sample --
+SELECT 
+    *
+FROM
+    sales_data_sample
+LIMIT 10;
+
+-- data cleaning and derieved columns --
+
+CREATE TABLE sales_backup AS SELECT * FROM
+    sales_data_sample;
+
+SELECT 
+    ORDERDATE
+FROM
+    sales_data_sample
+LIMIT 20;
+
+SELECT DISTINCT
+    LEFT(ORDERDATE, 20) AS sample_date
+FROM
+    sales_data_sample
+LIMIT 100;
+
+
+ALTER TABLE sales_data_sample
+  ADD COLUMN order_date_parsed DATE NULL,
+  ADD COLUMN order_value DECIMAL(12,2) NULL,
+  ADD COLUMN order_year INT NULL,
+  ADD COLUMN order_month INT NULL,
+  ADD COLUMN order_ym VARCHAR(7) NULL; -- format 'YYYY-MM';
+  
+UPDATE sales_data_sample 
+SET 
+    order_date_parsed = STR_TO_DATE(ORDERDATE, '%c/%e/%Y %H:%i');
+
+SELECT 
+    COUNT(*) AS total_rows,
+    SUM(CASE
+        WHEN ROUND(SALES, 2) = ROUND(QUANTITYORDERED * PRICEEACH, 2) THEN 1
+        ELSE 0
+    END) AS matches,
+    SUM(CASE
+        WHEN ROUND(SALES, 2) <> ROUND(QUANTITYORDERED * PRICEEACH, 2) THEN 1
+        ELSE 0
+    END) AS mismatches
+FROM
+    sales_data_sample;
+
+-- If SALES exists, use it; if missing, calculate
+UPDATE sales_data_sample 
+SET 
+    order_value = COALESCE(SALES, QUANTITYORDERED * PRICEEACH);
+
+SELECT 
+    ORDERNUMBER, QUANTITYORDERED, PRICEEACH, SALES, order_value
+FROM
+    sales_data_sample
+LIMIT 10;
+
+SELECT 
+    ROUND(SUM(SALES), 2) AS total_sales_column,
+    ROUND(SUM(QUANTITYORDERED * PRICEEACH), 2) AS total_computed,
+    ROUND(SUM(order_value), 2) AS total_order_value
+FROM
+    sales_data_sample;
+
+-- remove $ or comma if present (example)
+UPDATE sales_data_sample 
+SET 
+    PRICEEACH = REPLACE(REPLACE(PRICEEACH, '$', ''),
+        ',',
+        '')
+WHERE
+    PRICEEACH LIKE '%$%'
+        OR PRICEEACH LIKE '%,%';
+
+UPDATE sales_data_sample 
+SET 
+    order_year = YEAR(order_date_parsed),
+    order_month = MONTH(order_date_parsed),
+    order_ym = DATE_FORMAT(order_date_parsed, '%Y-%m');
+    
+    -- how many rows still have NULL parsed date?
+SELECT 
+    COUNT(*) AS null_dates
+FROM
+    sales_data_sample
+WHERE
+    order_date_parsed IS NULL;
+
+-- sample rows where parsed date is NULL (to inspect error cases)
+SELECT 
+    ORDERNUMBER, ORDERDATE
+FROM
+    sales_data_sample
+WHERE
+    order_date_parsed IS NULL
+LIMIT 20;
+
+-- check order_value NULLs
+SELECT 
+    COUNT(*) AS null_values
+FROM
+    sales_data_sample
+WHERE
+    order_value IS NULL;
+
+-- quick peek at final cleaned fields
+SELECT 
+    ORDERNUMBER,
+    ORDERDATE,
+    order_date_parsed,
+    order_ym,
+    order_value
+FROM
+    sales_data_sample
+LIMIT 20;
